@@ -19,6 +19,8 @@ from sklearn.feature_selection import VarianceThreshold
 from sklearn import preprocessing
 import matplotlib.pyplot as plt
 
+#import os
+#os.chdir('/Users/yuranpan/desktop/Fordham/Data_Mining/Project/Readmittedrate_master')
 
 dataset_raw = pd.read_csv('diabetic_data.csv')
 dataset_raw.dtypes
@@ -39,10 +41,17 @@ dataset.readmitted.replace('<30',1,inplace= True)
 dataset.readmitted.replace('NO',0, inplace= True)  
 dataset.readmitted.replace('>30',0, inplace= True) 
 
+
+
+
 #id and phone number are not factor to the target, convert to str
 dataset.encounter_id = dataset.encounter_id.astype('str')
 dataset.patient_nbr = dataset.patient_nbr.astype('str')
 dataset.info() # check again
+
+# separate features and label
+dataset_X = dataset.iloc[:,0:-1]
+dataset_Y = dataset.iloc[:,-1]
 
 
 ########################################
@@ -71,10 +80,9 @@ df_feature_catg = dataset.select_dtypes(include= [object])
 feature_catg = df_feature_catg.columns # object features
 d_catg = df_feature_catg.shape[1]
 
-#Missing ratio for each feature
-missing = dataset.count()/dataset.shape[0]
-#Sorting accending 
-missing.sort_values()
+# df.isnull().sum(),and How many percerage of missings values we have
+dataset_pct_missing = dataset.isnull().sum()/n
+dataset_pct_missing.sort_values(ascending=[False])
 
 ''' 
 insights: there are 7 catg feature have missing values, these are
@@ -92,39 +100,29 @@ for i in range(d_catg):
     axe = fig.add_subplot(d_catg/3, 3,i+1)
     axe.hist(df_feature_catg.iloc[:,i])
 
-### Q-Q plot ###
-
-#stats.probplot(df_feature_catg, dist="norm", plot=pylab)
-#pylab.show()
 
 
 ##########################################
 #Plotting numeric hist
-numeric = list(dataset.describe().columns)
-'''
-numeric = ['admission_type_id', 'discharge_disposition_id', 'admission_source_id',
-       'time_in_hospital', 'num_lab_procedures', 'num_procedures',
-       'num_medications', 'number_outpatient', 'number_emergency',
-       'number_inpatient', 'number_diagnoses']
-'''
+numeric = np.array(dataset.select_dtypes(include= [int64]).columns)
+
 
 # Hist graphes for numeric features:
-for i in numeric:
-    dataset[i].plot(kind ='hist')
-    plt.xlabel(i)
+for feature in numeric:
+    dataset[feature].plot(kind ='hist')
+    plt.xlabel(feature)
     plt.show()
 
 #distributions graphes for numeric features:
-for i in numeric:
-    _ = sns.distplot(dataset[i])
+for feature in numeric:
+    distplot = sns.distplot(dataset[feature])
     plt.show()
 
 ##########################################
 
 ### find percentage of missing values in each feature ###
 
-# try df.isnull().sum() ,and How many missings we have
-dataset.isnull().sum() 
+
 
 
 
@@ -134,8 +132,8 @@ sns.set(style="ticks")
 sns.pairplot(dataset[numeric])
 
 # comparing each features with the target
-for i in numeric:
-    g = sns.JointGrid(data=dataset, x=i, y='readmitted') 
+for feature in numeric:
+    g = sns.JointGrid(data=dataset, x=feature, y='readmitted') 
     g = g.plot_joint(sns.kdeplot)
     g = g.plot_marginals(sns.kdeplot, shade=True)
     g = g.annotate(stats.pearsonr)
