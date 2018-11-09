@@ -8,15 +8,17 @@ Created on Tue Nov  6 11:08:18 2018
 
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-import pylab 
-import scipy.stats as stats
-import os
-from sklearn.model_selection import train_test_split
-%matplotlib inline
+from sklearn.preprocessing import Imputer
+from sklearn import linear_model
+from sklearn import svm
+from sklearn.neighbors import NearestNeighbors
+from sklearn.naive_bayes import GaussianNB
+from sklearn import tree
+from sklearn.feature_selection import VarianceThreshold
+from sklearn import preprocessing
+import matplotlib.pyplot as plt
 
-os.chdir('/Users/yuranpan/Desktop/Fordham/Data_Mining/Project')
 
 dataset_raw = pd.read_csv('diabetic_data.csv')
 dataset_raw.dtypes
@@ -24,13 +26,18 @@ dataset_raw.describe(include = 'all')
 
 ### create a new to combine "> 30" and "no" to "no" ###
 
-a = dataset.groupby('readmitted').size()
-dataset['readmitted_new'] = np.where(dataset_raw['readmitted'] == '<30','<30','NO')
-dataset['readmitted_new'].hist()  # inbalanced data
+count_by_readmitted = dataset_raw.groupby('readmitted').size()
+print(count_by_readmitted)
+count_by_readmitted.plot(kind = 'bar')# inbalanced data
+
 
 ### convert '?' to 'NaN' ###
-dataset = dataset.replace('?','')    
+dataset = dataset_raw.replace('?', np.nan)    
 
+#id and phone number are not factor to the target, convert to str
+dataset.encounter_id = dataset.encounter_id.astype('str')
+dataset.patient_nbr = dataset.patient_nbr.astype('str')
+dataset.info() # check again
 
 
 ########################################
@@ -39,25 +46,30 @@ dataset = dataset.replace('?','')
 
 n = dataset.shape[0]
 features_all= dataset.columns
+'''features_all =
+        ['encounter_id', 'patient_nbr', 'race', 'gender', 'age', 'weight',
+       'admission_type_id', 'discharge_disposition_id', 'admission_source_id',
+       'time_in_hospital', 'payer_code', 'medical_specialty',
+       'num_lab_procedures', 'num_procedures', 'num_medications',
+       'number_outpatient', 'number_emergency', 'number_inpatient', 'diag_1',
+       'diag_2', 'diag_3', 'number_diagnoses', 'max_glu_serum', 'A1Cresult',
+       'metformin', 'repaglinide', 'nateglinide', 'chlorpropamide',
+       'glimepiride', 'acetohexamide', 'glipizide', 'glyburide', 'tolbutamide',
+       'pioglitazone', 'rosiglitazone', 'acarbose', 'miglitol', 'troglitazone',
+       'tolazamide', 'examide', 'citoglipton', 'insulin',
+       'glyburide-metformin', 'glipizide-metformin',
+       'glimepiride-pioglitazone', 'metformin-rosiglitazone',
+       'metformin-pioglitazone', 'change', 'diabetesMed', 'readmitted']'''
 
 ### check percentage of missing values ###
 df_feature_catg = dataset.select_dtypes(include= [object])
-feature_catg = df_feature_catg.columns
+feature_catg = df_feature_catg.columns # object features
 d_catg = df_feature_catg.shape[1]
 
-dataset.groupby('race').size()
-dataset['race'].isnull().sum()  # it couldn't detect the NaN
-
-pct_nan_list = []
-for feature in feature_catg:
-    pct_nan = (dataset.groupby(feature).size().get('NaN',0))/n
-    print('feature',feature,'has',pct_nan,'of missing values')
-    pct_nan_list.append(pct_nan)
-num_feature_missing = np.count_nonzero(pct_nan_list)       
-index = argsort(pct_nan_list)[::-1][0:7]
-feature_catg = feature_catg[index]
-print(pct_nan_list)
-print('top 7 feature with most missing value is',feature_catg)
+#Missing ratio for each feature
+missing = dataset.count()/dataset.shape[0]
+#Sorting accending 
+missing.sort_values()
 
 ''' 
 insights: there are 7 catg feature have missing values, these are
@@ -82,23 +94,36 @@ for i in range(d_catg):
 
 
 ##########################################
-######## Exploring Numerical Variables ###
+#Plotting numeric hist
+numeric = ['admission_type_id', 'discharge_disposition_id', 'admission_source_id',
+       'time_in_hospital', 'num_lab_procedures', 'num_procedures',
+       'num_medications', 'number_outpatient', 'number_emergency',
+       'number_inpatient', 'number_diagnoses']
+
+for i in numeric:
+    dataset[i].plot(kind ='hist')
+    plt.xlabel(i)
+    plt.show()
+
 ##########################################
 
 ### find percentage of missing values in each feature ###
 
 # try df.isnull().sum()
-
+dataset.isnull().sum() 
 
 
 
 ### plot scatterplot matrix ###
-
+import seaborn as sns
+sns.set(style="ticks")
+sns.pairplot(dataset[numeric])
 
 
 
 
 ### plot heatmap of coeffiecient ###
+sns.heatmap(dataset[numeric].corr()) 
 
 
 
