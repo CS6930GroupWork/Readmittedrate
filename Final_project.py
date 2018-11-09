@@ -3,7 +3,7 @@
 """
 Created on Tue Nov  6 11:08:18 2018
 
-@author: yuranpan
+@author: 
 """
 
 import numpy as np
@@ -25,14 +25,19 @@ dataset_raw.dtypes
 dataset_raw.describe(include = 'all')
 
 ### create a new to combine "> 30" and "no" to "no" ###
-
+#getting the number of target
 count_by_readmitted = dataset_raw.groupby('readmitted').size()
 print(count_by_readmitted)
 count_by_readmitted.plot(kind = 'bar')# inbalanced data
 
 
-### convert '?' to 'NaN' ###
-dataset = dataset_raw.replace('?', np.nan)    
+### convert '?' to 'NaN' and make a dataframe copy dataset,all work we done should on this set ###
+dataset = dataset_raw.replace('?', np.nan).copy()   
+
+#making the target to be 0,1: 0 means no readmitted, 1 means readmitted.
+dataset.readmitted.replace('<30',1,inplace= True)  
+dataset.readmitted.replace('NO',0, inplace= True)  
+dataset.readmitted.replace('>30',0, inplace= True) 
 
 #id and phone number are not factor to the target, convert to str
 dataset.encounter_id = dataset.encounter_id.astype('str')
@@ -100,29 +105,39 @@ numeric = ['admission_type_id', 'discharge_disposition_id', 'admission_source_id
        'num_medications', 'number_outpatient', 'number_emergency',
        'number_inpatient', 'number_diagnoses']
 
+# Hist graphes for numeric features:
 for i in numeric:
     dataset[i].plot(kind ='hist')
     plt.xlabel(i)
+    plt.show()
+
+#distributions graphes for numeric features:
+for i in numeric:
+    _ = sns.distplot(dataset[i])
     plt.show()
 
 ##########################################
 
 ### find percentage of missing values in each feature ###
 
-# try df.isnull().sum()
+# try df.isnull().sum() ,and How many missings we have
 dataset.isnull().sum() 
 
 
 
-### plot scatterplot matrix ###
+### plot scatterplot matrix for numeric data ###
 import seaborn as sns
 sns.set(style="ticks")
 sns.pairplot(dataset[numeric])
 
+# comparing each features with the target
+for i in numeric:
+    g = sns.JointGrid(data=dataset, x=i, y='readmitted') 
+    g = g.plot_joint(sns.kdeplot)
+    g = g.plot_marginals(sns.kdeplot, shade=True)
+    g = g.annotate(stats.pearsonr)
 
-
-
-### plot heatmap of coeffiecient ###
+### plot heatmap of coeffiecient for numeric data###
 sns.heatmap(dataset[numeric].corr()) 
 
 
