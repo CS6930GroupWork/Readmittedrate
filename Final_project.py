@@ -96,7 +96,7 @@ insights: Weight has 96.86% of missing values
 
 ##########################################
 #Plotting numeric hist
-numeric = np.array(dataset.select_dtypes(include= [int64]).columns)
+numeric = np.array(dataset.describe().columns)
 
 
 hist_matrix = dataset[numeric].hist()
