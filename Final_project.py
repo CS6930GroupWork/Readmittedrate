@@ -18,6 +18,7 @@ from sklearn import tree
 from sklearn.feature_selection import VarianceThreshold
 from sklearn import preprocessing
 import matplotlib.pyplot as plt
+from pandas.plotting import scatter_matrix
 
 #import os
 #os.chdir('/Users/yuranpan/desktop/Fordham/Data_Mining/Project/Readmittedrate_master')
@@ -93,31 +94,21 @@ insights: Weight has 96.86% of missing values
 
 ### Histogram ###
 
-#hist = df_feature_catg.hist() # code not working
-
-fig = plt.figure()
-for i in range(d_catg):
-    axe = fig.add_subplot(d_catg/3, 3,i+1)
-    axe.hist(df_feature_catg.iloc[:,i])
-
-
-
 ##########################################
 #Plotting numeric hist
 numeric = np.array(dataset.select_dtypes(include= [int64]).columns)
 
 
-# Hist graphes for numeric features:
-for feature in numeric:
-    dataset[feature].plot(kind ='hist')
-    plt.xlabel(feature)
-    plt.show()
+hist_matrix = dataset[numeric].hist()
+plt.show()
 
 #distributions graphes for numeric features:
-for feature in numeric:
-    distplot = sns.distplot(dataset[feature])
-    plt.show()
+dist_matrix = dataset.plot(kind='density', subplots=True, layout=(4,4), sharex=False)
+plt.show()
 
+#boxplot graphes for numeric features:
+boxplot_matrix = dataset.plot(kind='box', subplots=True, layout=(4,4), sharex=False, sharey=False)
+plt.show()
 ##########################################
 
 ### find percentage of missing values in each feature ###
