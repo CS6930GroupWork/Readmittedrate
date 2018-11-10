@@ -120,7 +120,7 @@ plt.show()
 ### plot scatterplot matrix for numeric data ###
 import seaborn as sns
 sns.set(style="ticks")
-sns.pairplot(dataset[numeric])
+sns.pairplot(dataset[numeric],palette='husl',hue = 'readmitted', plot_kws={'alpha': 0.5})
 
 # comparing each features with the target
 for feature in numeric:
