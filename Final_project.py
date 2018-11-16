@@ -246,7 +246,45 @@ data_meddle = dataset_3.iloc[:,4:15] #before diag
 data_numToA1 = dataset_3.iloc[:,18:21]
 data_tail = dataset_3.iloc[:,-3:] # change and med and target
 dataset_cleaned =pd.concat([data_id,dataset_race_gender,data_meddle,data_diag_,data_numToA1,data_medicine,data_tail],axis = 1) 
-dataset_cleaned.to_csv('data_cleaned.csv')
+#dataset_cleaned.to_csv('data_cleaned.csv')
+
+
+#using heatmap to get more insight knowledge
+plt.figure(figsize=(30,30),dpi=300)
+sns.heatmap(dataset_cleaned.corr()) 
+
+#those features have 0 correlation
+nan_to_drop = ['examide_No', 'citoglipton_No','metformin-rosiglitazone_No']#because its corr is nan.
+
+#define a function to drop high correlations between features
+def get_feature(corr_feature):
+    list_of_features = []
+    for row in range(len(corr_feature)):
+        #row, column = [], []
+        for column in range(i+1,len(corr_feature)):
+            if abs(corr_feature.iloc[i,j]) > 0.95:
+                row_name = corr_feature.index[row]
+                #print(row)
+                column_name = corr_feature.columns[column]
+                #print(column)
+                comb = [row_name,column_name]
+                #print(comb)
+                list_of_features.append(comb)
+    return list_of_features
+
+#find those features
+pair_todrop = get_feature(corr_features)
+one_todrop = []
+for pair in pair_todrop:
+    one = pair[0]
+    one_todrop.append(one)
+        
+
+ #getting the features to drop 
+to_drop = one_todrop + nan_to_drop        
+dataset_cleaned_2 = dataset_cleaned.drop(to_drop, axis = 1)
+dataset_cleaned_2.to_csv('dataset_cleaned20181115.csv')
+
 '''
 FOR NUMERICAL FEATURES:
     should we drop them?  df.dropna()
