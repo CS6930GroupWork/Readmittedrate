@@ -22,7 +22,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.preprocessing import LabelEncoder
 
 #import os
-#os.chdir('/Users/yuranpan/desktop/Fordham/Data_Mining/Project/Readmittedrate_master')
+#os.chdir('/Users/yuranpan/desktop/Fordham/Data_Mining/Project/Readmittedrate-master')
 
 dataset_raw = pd.read_csv('diabetic_data.csv')
 dataset_raw.dtypes
@@ -40,19 +40,32 @@ count_by_readmitted.plot(kind = 'bar')# inbalanced data
 dataset = dataset_raw.replace('?', np.nan).copy()   
 
 #making the target to be 0,1: 0 means no readmitted, 1 means readmitted.
-dataset.readmitted.replace('<30',1,inplace= True)  
-dataset.readmitted.replace('NO',0, inplace= True)  
-dataset.readmitted.replace('>30',0, inplace= True) 
+#dataset.readmitted.replace('<30','<30',inplace= True)  
+#dataset.readmitted.replace('NO','NO', inplace= True)  
+#dataset.readmitted.replace('>30','NO', inplace= True) 
 
 
-#id and phone number are not factor to the target, convert to str
-dataset.encounter_id = dataset.encounter_id.astype('str')
-dataset.patient_nbr = dataset.patient_nbr.astype('str')
+dataset['readmitted'].replace('<30',1, inplace = True)
+dataset['readmitted'].replace('NO',0, inplace = True)
+dataset['readmitted'].replace('>30',0, inplace = True)
+
+plt.hist(dataset['readmitted'])
+
+
+### fix feature types ####
+
+# numeric to nominal
+dataset.encounter_id = dataset.encounter_id.astype('object')
+dataset.patient_nbr = dataset.patient_nbr.astype('object')
+
+# convert numeric code to category code
+dataset['admission_type_id'] = dataset['admission_type_id'].astype('category')
+dataset['discharge_disposition_id'] = dataset['discharge_disposition_id'].astype('category')
+dataset['admission_source_id'] = dataset['admission_source_id'].astype('category')
+
+
 dataset.info() # check again
 
-# separate features and label
-dataset_X = dataset.iloc[:,0:-1]
-dataset_Y = dataset.iloc[:,-1]
 
 
 ########################################
@@ -61,7 +74,8 @@ dataset_Y = dataset.iloc[:,-1]
 
 n = dataset.shape[0]
 features_all= dataset.columns
-'''features_all =
+'''
+  features_all =
         ['encounter_id', 'patient_nbr', 'race', 'gender', 'age', 'weight',
        'admission_type_id', 'discharge_disposition_id', 'admission_source_id',
        'time_in_hospital', 'payer_code', 'medical_specialty',
@@ -74,10 +88,12 @@ features_all= dataset.columns
        'tolazamide', 'examide', 'citoglipton', 'insulin',
        'glyburide-metformin', 'glipizide-metformin',
        'glimepiride-pioglitazone', 'metformin-rosiglitazone',
-       'metformin-pioglitazone', 'change', 'diabetesMed', 'readmitted']'''
+       'metformin-pioglitazone', 'change', 'diabetesMed', 'readmitted'],
+      dtype='object']
+ '''
 
 ### check percentage of missing values ###
-df_feature_catg = dataset.select_dtypes(include= [object])
+df_feature_catg = dataset.select_dtypes(exclude= ['int64'])
 feature_catg = df_feature_catg.columns # object features
 d_catg = df_feature_catg.shape[1]
 
@@ -97,20 +113,23 @@ insights: Weight has 96.86% of missing values
 #Plotting numeric hist
 numeric = np.array(dataset.describe().columns)
 
+'''
+'time_in_hospital', 'num_lab_procedures', 'num_procedures',
+       'num_medications', 'number_outpatient', 'number_emergency',
+       'number_inpatient', 'number_diagnoses'
+'''
 hist_matrix = dataset[numeric].hist()
-plt.show()
+#dataset['number_outpatient'].plot(kind='hist')
+
 
 #distributions graphes for numeric features:
-dist_matrix = dataset.plot(kind='density', subplots=True, layout=(4,4), sharex=False)
+dist_matrix = dataset[numeric].plot(kind='density', subplots=True, layout=(2,4), sharex=False, sharey = False)
 plt.show()
 
 #boxplot graphes for numeric features:
 boxplot_matrix = dataset.plot(kind='box', subplots=True, layout=(4,4), sharex=False, sharey=False)
 plt.show()
 ##########################################
-
-### find percentage of missing values in each feature ###
-
 
 
 
@@ -121,7 +140,6 @@ sns.set(style="ticks")
 sns.pairplot(dataset[numeric],palette='husl',hue = 'readmitted', plot_kws={'alpha': 0.5})
 
 
-
 ### plot heatmap of coeffiecient for numeric data###
 sns.heatmap(dataset[numeric].corr()) 
 
@@ -130,67 +148,133 @@ sns.heatmap(dataset[numeric].corr())
 #######################################
 ####### Handling Missing Values #######
 #######################################
-##drop
-#1.drop features: weight, payercode and medical_specialty 
-dataset_1 = dataset.drop(labels='weight',axis = 1).drop(labels='payer_code',axis = 1).drop(labels='medical_specialty',axis = 1)
 
-#2.dropping the instances who have missing values in race,diag1,2,3
-dataset_2 = dataset_1.dropna(subset=['race','diag_1','diag_2','diag_3'])
 
-#3.droping the instances who are dead!
-#Integer identifier corresponding to 29 distinct values, for example, discharged to home, expired, and not available
-def drop_dischaged(data,col,values):
-    for value in values:
-        data = data.drop(data[(data[col] == value)].index)
-    return data
+# drop weights, very sparse 
+dataset.drop(labels='weight',axis = 1, inplace = True)
+# explore payercode, calcuting readmissoin distribution in each of the group 
+payercode_bar = sns.countplot(x = 'payer_code', hue = 'readmitted', data = dataset)
+# seems like payercode is not a signficant factor that affect readmisson 
+#drop payercode
+dataset.drop(labels='payer_code',axis = 1, inplace = True)
 
-dead_code = [11,12,13,14,19,20,21,25,26]#people are dead
-dataset_3 = drop_dischaged(dataset_2,'discharge_disposition_id',dead_code)
 
-##mapping
-#4.transfer objects into numbers 
-#ageing bins to 1:10
-age_mapping = {'[0-10)':1,
-               '[10-20)':2,
-               '[20-30)':3,
-               '[30-40)':4,
-               '[40-50)':5,
-               '[50-60)':6,
-               '[60-70)':7,
-               '[70-80)':8,
-               '[80-90)':9,
-               '[90-100)':10}
-dataset_3['age'] = dataset_3.age.map(age_mapping)
 
-#max_glu_serum: Indicates the range of the result or if the test was not taken.
-#  Values: “>200,” “>300,” “normal,” and “none” if not measured
-max_glu_serum_mapping = {'>200':2, '>300':3, 'None':0, 'Norm':1}
-dataset_3['max_glu_serum'] = dataset_3.max_glu_serum.map(max_glu_serum_mapping)
+# assign medical specialty with mode based on age 
 
-#A1Cresult :Indicates the range of the result or if the test was not taken. Values: “>8” if the result was greater than 8%, 
-# “>7” if the result was greater than 7% but less than 8%, “normal” if the result was less than 7%, and “none” if not measured.
-A1Cresult_mapping = {'>7': 7, '>8':8, 'None':0, 'Norm':4}
-dataset_3['A1Cresult'] = dataset_3.A1Cresult.map(A1Cresult_mapping)
+count_by_medspe = dataset.groupby('medical_specialty').size()
+sns.countplot(x = 'age',hue = 'medical_specialty', data = dataset)
 
-#Change of medications: Indicates if there was a change in diabetic medications 
-# (either dosage or generic name). Values: “change” and “no change”
-change_mapping = {'Ch': 1, 'No': 0}
-dataset_3['change'] = dataset_3.change.map(change_mapping)
 
-#Diabetes medications : Indicates if there was any diabetic medication prescribed. 
-# Values: “yes” and “no”
-dia_mapping = {'No': 0, 'Yes': 1}
-dataset_3['diabetesMed'] = dataset_3.diabetesMed.map(dia_mapping)
+def conditional_fillna_base_on_mode(conditioned_feature,missing_value_feature, dataset):
+    pair = {}
+    age_grouped = dataset.groupby(conditioned_feature)
+    for age, group in age_grouped:
+        medical_grouped = group.groupby([missing_value_feature]).size().sort_values(ascending=False)  
+        mode = medical_grouped.keys()[0]
+        pair[age] = mode
+    dataset[missing_value_feature].replace(np.nan, pair[age], inplace = True)
+    return dataset
 
-##One hot
-#For medicine : Values: “up” if the dosage was increased during the encounter, “down” if the dosage was decreased, 
-# “steady” if the dosage did not change, and “no” if the drug was not prescribed
-data_medicine = dataset_3.iloc[:,21:44]
-data_medicine = pd.get_dummies(data_medicine)
+dataset = conditional_fillna_base_on_mode('age','medical_specialty',dataset)
 
-#for race and gender
-dataset_race_gender = pd.get_dummies(dataset_3[['race','gender']])
 
+
+
+'''
+age_column_index = list(dataset.columns).index('age')
+medical_specialty_index = list(dataset.columns).index('medical_specialty')
+
+dataset.apply(lambda row: pair[row[age_column_index]] if isnan(row[medical_specialty_index]) else row[medical_specialty_index], axis=1)
+'''
+
+# race: fill in missing data with the mode
+dataset['race'].replace(np.nan,'Caucasian', inplace = True)
+
+# drop the duplicated encounter_ID. Keep the last entry(Needs to check)
+#dataset.drop_duplicates(subset = ['patient_nbr'], keep = 'last', inplace = True)
+# decided to keep both records if duplicated. will make a feature to flag it.
+# show how many duplicates there are for each patient_nbr
+
+duplicates = dataset[dataset.duplicated(['patient_nbr'], keep=False)]
+duplicated_count = duplicates.groupby('patient_nbr').size()
+duplicated_count.to_csv('duplicated.csv')
+
+
+# drop paitence death
+dead_code = [11,12,13,14,19,20,21,25,26]
+drop_discharged_index = dataset[dataset['discharge_disposition_id'].isin(dead_code)].index
+dataset.drop(drop_discharged_index, inplace = True)                                       
+#101766 - 3415 = 98351
+
+
+
+#2.dropping the instances who have missing values in diag1,2,3
+dataset.dropna(axis = 0, subset=['diag_1','diag_2','diag_3'], inplace = True)
+#98351- 1485 = 96866
+
+###############################
+######## Encoding #############
+###############################
+
+#####Label Encoding
+#medical-specific features
+labelencodinglist = ['metformin',
+                     'repaglinide','nateglinide','chlorpropamide','glimepiride',
+                     'acetohexamide','glipizide','glyburide','tolbutamide','pioglitazone',
+                     'rosiglitazone','acarbose','miglitol','troglitazone','tolazamide','examide',
+                     'citoglipton','insulin','glyburide-metformin','glipizide-metformin',
+                     'glimepiride-pioglitazone','metformin-pioglitazone', 'metformin-rosiglitazone']
+
+labelencoder = LabelEncoder()
+for feature in labelencodinglist:
+    labelencoder.fit(['No','Down','Steady','Up'])
+    dataset[feature] = labelencoder.transform(dataset[feature])
+
+
+#age
+age_enc = dataset['age'].unique()
+labelencoder.fit(age_enc)
+dataset['age'] = labelencoder.transform(dataset['age'])
+
+#max_glu_serum
+max_glu_serum_enc = dataset['max_glu_serum'].unique()
+labelencoder.fit(['None','Norm','>200','>300'])
+dataset['max_glu_serum'] = labelencoder.transform(dataset['max_glu_serum'])
+
+
+#A1Cresult
+A1Cresult_enc = dataset['A1Cresult'].unique()
+labelencoder.fit(['None','Norm','>7','>8'])
+dataset['A1Cresult'] = labelencoder.transform(dataset['A1Cresult'])
+
+
+#### Onehot Encoding
+onehotencodinglist = ['race','gender','medical_specialty','change','diabetesMed'
+                      ]
+def get_dummies_prefix(feature):
+    enc = pd.get_dummies(dataset[feature])
+    enc.columns = dataset[feature].unique()
+    enc_prefix = enc.add_prefix(feature+'_')
+    return enc_prefix
+    
+race_enc = get_dummies_prefix('race')
+gender_enc = get_dummies_prefix('gender')
+med_specialty_enc = get_dummies_prefix('medical_specialty')
+change_enc = get_dummies_prefix('change')
+diabetesMed_enc = get_dummies_prefix('diabetesMed')
+
+
+# merge all dataframes
+new_dataset = pd.concat([dataset, race_enc,gender_enc,med_specialty_enc,change_enc,diabetesMed_enc], axis = 1)
+# remove original feature columns
+new_dataset.drop(labels =onehotencodinglist,axis = 1, inplace = True)
+
+new_dataset.to_csv('new_dataset.csv')
+
+
+
+'''
 
 ##Diag1,2,3 mapping
 #Diag1 
@@ -246,45 +330,7 @@ data_meddle = dataset_3.iloc[:,4:15] #before diag
 data_numToA1 = dataset_3.iloc[:,18:21]
 data_tail = dataset_3.iloc[:,-3:] # change and med and target
 dataset_cleaned =pd.concat([data_id,dataset_race_gender,data_meddle,data_diag_,data_numToA1,data_medicine,data_tail],axis = 1) 
-#dataset_cleaned.to_csv('data_cleaned.csv')
-
-
-#using heatmap to get more insight knowledge
-plt.figure(figsize=(30,30),dpi=300)
-sns.heatmap(dataset_cleaned.corr()) 
-
-#those features have 0 correlation
-nan_to_drop = ['examide_No', 'citoglipton_No','metformin-rosiglitazone_No']#because its corr is nan.
-
-#define a function to drop high correlations between features
-def get_feature(corr_feature):
-    list_of_features = []
-    for row in range(len(corr_feature)):
-        #row, column = [], []
-        for column in range(i+1,len(corr_feature)):
-            if abs(corr_feature.iloc[i,j]) > 0.95:
-                row_name = corr_feature.index[row]
-                #print(row)
-                column_name = corr_feature.columns[column]
-                #print(column)
-                comb = [row_name,column_name]
-                #print(comb)
-                list_of_features.append(comb)
-    return list_of_features
-
-#find those features
-pair_todrop = get_feature(corr_features)
-one_todrop = []
-for pair in pair_todrop:
-    one = pair[0]
-    one_todrop.append(one)
-        
-
- #getting the features to drop 
-to_drop = one_todrop + nan_to_drop        
-dataset_cleaned_2 = dataset_cleaned.drop(to_drop, axis = 1)
-dataset_cleaned_2.to_csv('dataset_cleaned20181115.csv')
-
+dataset_cleaned.to_csv('data_cleaned.csv')
 '''
 FOR NUMERICAL FEATURES:
     should we drop them?  df.dropna()
@@ -299,6 +345,8 @@ https://www.kaggle.com/danavg/dummy-variables-vs-label-encoding-approach
     
     
 '''
+
+
 
 
 
