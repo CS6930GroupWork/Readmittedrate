@@ -359,7 +359,7 @@ df = df.astype(int)
 df = df.replace(circ, 'Circulatory')
 df = df.replace(resp, 'Respiratory')
 df = df.replace(dige, 'Digestive')
-df = df.replace(250, 'Diabetes')
+df = df.replace(250, 'Diabetes' c
 df = df.replace(inj, 'Injury')
 df = df.replace(musc, 'Musculoskeletal')
 df = df.replace(geni ,'Genitourinary')
@@ -379,8 +379,14 @@ new_dataset.to_csv('new_dataset_2.csv')
 
 
 
+### plot scatterplot matrix for new_clean data ###
+sns.set(style="ticks")
+#scatters between numeric features and color by targets
+sns.pairplot(new_dataset,palette='husl',hue = 'readmitted', plot_kws={'alpha': 0.5})
 
-
+                
+### plot heatmap of coeffiecient for new data###
+sns.heatmap(new_dataset.corr()) 
 
 
 
